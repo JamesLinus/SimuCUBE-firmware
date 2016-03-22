@@ -43,25 +43,83 @@ int main(void) {
 #include "USBMouse.h"
 //#include "USBKeyboard.h"
 
+Serial SMSerial(PB_10, PB_11); // tx, rx
+DigitalOut SMSerialTXEN(PD_8);
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+int SMPortWrite(const char *data, int len)
+{
+	int i;
+	SMSerialTXEN=1;
+	for(i=0;i<len;i++)
+		SMSerial.putc(data[i]);
+	wait(43e-6);//keep TXEN up for last 2 bytes because putc returns before data is physically out
+	SMSerialTXEN=0;
+
+	return len;
+}
+
+int SMPortReadByte( char *byte )
+{
+	Timer timeout;
+	timeout.start();
+	timeout.reset();
+
+	bool done=false;
+	do
+	{
+		if(SMSerial.readable())
+		{
+			*byte=SMSerial.getc();
+			return 1;
+		}
+	} while(timeout.read()<0.2);//loop until timeout or data received
+
+	//timeouted
+	return 0;
+}
+
+#ifdef __cplusplus
+}
+#endif
 
 USBMouse mouse;
 //USBKeyboard keyboard;//keyb and mouse dont work simultaneously. hang in init
 
 Serial pc(PA_9, PA_10); // tx, rx
+#include "simplemotion.h"
 
 int main() {
+	smbus h;
+	h=smOpenBus("MBEDSERIAL");
+	SMSerial.baud(460800);
+	pc.baud(230400);
+
     while(1) {
-        mouse.move(1, 1);     //moves the mouse down and to the left
+        //mouse.move(1, 1);     //moves the mouse down and to the left
         //keyboard.keyCode('s');
 
         led1 = !led1;     //cycles the LED on/off
-        wait(0.25);        //waits 2 seconds, then repeats
+        //wait(0.15);        //waits 2 seconds, then repeats
 
-        pc.printf("Hello World!\n");
+        //simplemotion.printf("fdasfsadfasdfasdfsadfas");
+        //SMPortWrite("fdsafdsafdsafdsafdsa",5);
 
-        if(pc.readable()) {
+        SM_STATUS stat=smSetParameter(h,1,SMP_ABSOLUTE_SETPOINT,1111);
+//        pc.printf("write stat %d\n",stat);
+        smint32 read;
+        stat|=smRead1Parameter(h,1,SMP_ACTUAL_BUS_VOLTAGE,&read);
+  //      pc.printf("read stat %d\n",stat);
+        pc.printf("val %d, stat %d\n",read,stat);
+        stat=0;
+
+        /*if(pc.readable()) {
             pc.putc(pc.getc());
-        }
+        }*/
+
     }
 }
 
