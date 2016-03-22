@@ -1,0 +1,39 @@
+# Compiled Object files
+*.slo
+*.lo
+*.o
+*.obj
+*.o.d
+*.lst
+*~
+*.hg
+.hg/*
+.hgignore
+
+
+# Compiled Dynamic libraries
+*.so
+*.dylib
+*.dll
+
+# Compiled Static libraries
+*.lai
+*.la
+*.a
+*.lib
+
+# Executables
+*.exe
+*.out
+*.app
+*.elf
+core
+.svn
+octave-core
+*.hex
+*.map
+*.asm
+ion_rom.bin
+*.d
+*.hex
+*.bin
