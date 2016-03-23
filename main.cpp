@@ -43,6 +43,7 @@ int main(void) {
 #include "USBMouse.h"
 //#include "USBKeyboard.h"
 #include "stm32f4xx_hal_gpio.h"
+#include "stm32f4xx_hal_tim.h"
 
 Serial SMSerial(PB_10, PB_11); // tx, rx
 DigitalOut SMSerialTXEN(PD_8);
@@ -51,6 +52,43 @@ bool SMSerialMasterIsMe=true;
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+//Init encoder input
+//credit to David Lowe from https://developer.mbed.org/forum/platform-34-ST-Nucleo-F401RE-community/topic/4963/?page=1#comment-26870
+void EncoderInitialize()
+{
+    // configure GPIO PA0 & PA1 aka A0 & A1 as inputs for Encoder
+    // Enable clock for GPIOA
+    __GPIOA_CLK_ENABLE(); //equivalent from hal_rcc.h
+
+    //stm32f4xx.h
+    GPIOA->MODER   |= GPIO_MODER_MODER0_1 | GPIO_MODER_MODER1_1 ;           //PA0 & PA1 as Alternate Function   /*!< GPIO port mode register,               Address offset: 0x00      */
+    GPIOA->OTYPER  |= GPIO_OTYPER_OT_0 | GPIO_OTYPER_OT_1 ;                 //PA0 & PA1 as Inputs               /*!< GPIO port output type register,        Address offset: 0x04      */
+    GPIOA->OSPEEDR |= GPIO_OSPEEDER_OSPEEDR0 | GPIO_OSPEEDER_OSPEEDR1 ;     //Low speed                         /*!< GPIO port output speed register,       Address offset: 0x08      */
+    GPIOA->PUPDR   |= GPIO_PUPDR_PUPDR0_1 | GPIO_PUPDR_PUPDR1_1 ;           //Pull Down                         /*!< GPIO port pull-up/pull-down register,  Address offset: 0x0C      */
+    GPIOA->AFR[0]  |= 0x00000011 ;                                          //AF01 for PA0 & PA1                /*!< GPIO alternate function registers,     Address offset: 0x20-0x24 */
+    GPIOA->AFR[1]  |= 0x00000000 ;                                          //nibbles here refer to gpio8..15   /*!< GPIO alternate function registers,     Address offset: 0x20-0x24 */
+
+    // configure TIM2 as Encoder input
+    // Enable clock for TIM2
+    __TIM2_CLK_ENABLE();
+
+    TIM2->CR1   = 0x0001;     // CEN(Counter ENable)='1'     < TIM control register 1
+    TIM2->SMCR  = TIM_ENCODERMODE_TI12;     // SMS='011' (Encoder mode 3)  < TIM slave mode control register
+    TIM2->CCMR1 = 0x8181;     // CC1S='01' CC2S='01'         < TIM capture/compare mode register 1. 0x_1_1 blanks are input filter strength 0-F
+    TIM2->CCMR2 = 0x0000;     //                             < TIM capture/compare mode register 2
+    TIM2->CCER  = 0x0011;     // CC1P CC2P                   < TIM capture/compare enable register
+    TIM2->PSC   = 0x0000;     // Prescaler = (0+1)           < TIM prescaler
+    TIM2->ARR   = 0xffffffff; // reload at 0xfffffff         < TIM auto-reload register
+
+    TIM2->CNT = 0x0000;  //reset the counter before we use it
+}
+
+int EncoderRead()
+{
+	return TIM2->CNT;
+}
+
 
 int SMPortWrite(const char *data, int len)
 {
@@ -150,6 +188,7 @@ int main() {
 DigitalOut test(PB_5);
 test=1;
 
+	EncoderInitialize();
     while(1) {
         //mouse.move(1, 1);     //moves the mouse down and to the left
         //keyboard.keyCode('s');
@@ -165,7 +204,8 @@ test=1;
         SM_STATUS stat=smSetParameter(h,1,SMP_ABSOLUTE_SETPOINT,1111);
         smint32 read;
         stat|=smRead1Parameter(h,1,SMP_ACTUAL_BUS_VOLTAGE,&read);
-        pc.printf("val %d; stat %d; %f; %f; %f\n",read,stat,ADCUpperPin1.read(),ADCUpperPin2.read(),ADCUpperPin3.read());
+        pc.printf("val %d; stat %d; %f; %f; %f; %d\n",read,stat,ADCUpperPin1.read(),ADCUpperPin2.read(),ADCUpperPin3.read(), EncoderRead());
+
         stat=0;
 
 
