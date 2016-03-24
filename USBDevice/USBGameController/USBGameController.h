@@ -121,7 +121,7 @@ class USBGameController: public USBHID {
          * @param product_id Your product_id (default: 0x0002)
          * @param product_release Your product_release (default: 0x0001)
          */
-         USBGameController(uint16_t vendor_id = 0x6661, uint16_t product_id = 0x0100, uint16_t product_release = 0x0001):
+         USBGameController(uint16_t vendor_id = 0x7c5a, uint16_t product_id = 0xb101, uint16_t product_release = 0x0001):
              USBHID(0, 0, vendor_id, product_id, product_release, false)
              {
                  _init();
@@ -129,17 +129,16 @@ class USBGameController: public USBHID {
              };
 
          /**
-         * Write a state of the mouse
+         * Write a state of the game controller
          *
-         * @param t throttle position
-         * @param r rudder position
+         * @param 4 pedals first
          * @param x x-axis position
          * @param y y-axis position
          * @param buttons buttons state
          * @param hat hat state 0 (up), 1 (right, 2 (down), 3 (left) or 4 (neutral)
          * @returns true if there is no error, false otherwise
          */
-         bool update(int16_t t, int16_t r, int16_t x, int16_t y, uint8_t buttons, uint8_t hat);
+         bool update(int16_t brake, int16_t clutch, int16_t throttle, int16_t rudder, int16_t x, int16_t y, uint32_t button, uint8_t hat);
 
          /**
          * Write a state of the mouse
@@ -179,7 +178,7 @@ class USBGameController: public USBHID {
          * @param button button state
          * @returns true if there is no error, false otherwise
          */
-         bool button(uint8_t button);
+         bool button(uint32_t button);
 
          /**
          * Press hat
@@ -207,10 +206,10 @@ class USBGameController: public USBHID {
          int16_t Throttle;
          int16_t Brake;
          int16_t Clutch;
-         int16_t FourthPedal;
+         int16_t Rudder;
          int16_t X;
          int16_t Y;
-         uint8_t Buttons;
+         uint32_t Buttons;
          uint8_t Hat;
 
          void _init();

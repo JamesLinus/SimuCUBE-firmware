@@ -180,14 +180,14 @@ Serial pc(PA_9, PA_10); // tx, rx
 #include "simplemotion.h"
 
 int main() {
-    int16_t i = 0;
+    int32_t i = 0;
     int16_t throttle = 0;
     int16_t rudder = 0;
     int16_t x = 0;
     int16_t y = 0;
     int32_t radius = 120;
     int32_t angle = 0;
-    int8_t button = 0;
+    uint32_t button = 0;
     int8_t hat = 0;
 
     pc.printf("Hello World!\n\r");
@@ -197,7 +197,8 @@ int main() {
         // Basic Joystick
         throttle = (i >> 8) & 0xFF; // value -127 .. 128
         rudder = (i >> 8) & 0xFF;   // value -127 .. 128
-        button = (i >> 8) & 0x0F;   // value    0 .. 15, one bit per button
+        //button = (i >> 8) & 0x0F;   // value    0 .. 15, one bit per button
+        button=i;
 //        hat    = (i >> 8) & 0x03;   // value 0, 1, 2, 3 or 4 for neutral
         hat    = (i >> 8) & 0x07;   // value 0..7 or 8 for neutral
         i++;
@@ -208,7 +209,7 @@ int main() {
 
         x=EncoderRead();
         y=0;
-        joystick.update(throttle, rudder, x, y, button, hat);
+        joystick.update(throttle, throttle,throttle,rudder, x, y, button, hat);
 
         wait(0.001);
     }

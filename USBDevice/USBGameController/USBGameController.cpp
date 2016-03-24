@@ -20,10 +20,11 @@
 #include "stdint.h"
 #include "USBGameController.h"
 
-bool USBGameController::update(int16_t t, int16_t r, int16_t x, int16_t y, uint8_t button, uint8_t hat) {
+bool USBGameController::update(int16_t brake, int16_t clutch, int16_t throttle, int16_t rudder, int16_t x, int16_t y, uint32_t button, uint8_t hat)
+{
              HID_REPORT report;
-   Throttle = t;
-   Brake = r;   
+   Throttle = throttle;
+   Brake = rudder;
    X = x;
    Y = y;
    Buttons = button;     
@@ -35,16 +36,42 @@ bool USBGameController::update(int16_t t, int16_t r, int16_t x, int16_t y, uint8
 bool USBGameController::update() {
    HID_REPORT report;
 
+   int i=0;
    // Fill the report according to the Joystick Descriptor
-   report.data[0] = Throttle & 0xff;            
-   report.data[1] = Brake & 0xff;               
-   report.data[2] = X & 0xff;
-   report.data[3] = ((X&0xff00)>>8);
-   report.data[4] = Y & 0xff;
-   report.data[5] = ((Y&0xff00)>>8);
+   //report.data[0] = Brake & 0xff;
+   //report.data[1] = Clutch & 0xff;
+   //report.data[2] = Throttle & 0xff;
+   //report.data[3] = Rudder & 0xff;
+   report.data[i++] = X & 0xff;
+   report.data[i++] = ((X&0xff00)>>8);
 
-   report.data[6] = ((Buttons & 0x0f) << 4) | (Hat & 0x0f) ;
-   report.length = 7;
+   report.data[i++] = Y & 0xff;
+   report.data[i++] = ((Y&0xff00)>>8);
+
+   report.data[i++] = X & 0xff;
+   report.data[i++] = ((X&0xff00)>>8);
+
+   report.data[i++] = X & 0xff;
+   report.data[i++] = ((X&0xff00)>>8);
+
+   report.data[i++] = X & 0xff;
+   report.data[i++] = ((X&0xff00)>>8);
+
+   report.data[i++] = X & 0xff;
+   report.data[i++] = ((X&0xff00)>>8);
+
+   report.data[i++] = X & 0xff;
+   report.data[i++] = ((X&0xff00)>>8);
+
+   report.data[i++] = X & 0xff;
+   report.data[i++] = ((X&0xff00)>>8);
+
+   //report.data[8] = ((Buttons & 0x0f) << 4) | (Hat & 0x0f) ;
+   report.data[i++] = ((Buttons & 0xff) >>0);
+   report.data[i++] = ((Buttons & 0xff00) >>8);
+   report.data[i++] = ((Buttons & 0xff0000) >>16);
+   report.data[i++] = ((Buttons & 0xff000000) >>24);
+   report.length = i;
 
    return send(&report);
 }
@@ -65,7 +92,7 @@ bool USBGameController::move(int16_t x, int16_t y) {
      return update();
 }
 
-bool USBGameController::button(uint8_t button) {
+bool USBGameController::button(uint32_t button) {
      Buttons = button;
      return update();
 }
@@ -79,7 +106,9 @@ bool USBGameController::hat(uint8_t hat) {
 void USBGameController::_init() {
 
    Throttle = -127;
-   Brake = -127;    
+   Brake = -127;
+   Clutch=0;
+   Rudder=0;
    X = 0;                       
    Y = 0;     
    Buttons = 0x00;
@@ -94,62 +123,37 @@ uint8_t * USBGameController::reportDesc() {
              LOGICAL_MINIMUM(1), 0x00,      // Logical_Minimum (0)             
              USAGE(1), 0x04,                // Usage (Joystick)
              COLLECTION(1), 0x01,           // Application
-               USAGE_PAGE(1), 0x02,            // Simulation Controls
-               USAGE(1), 0xBB,                 // Throttle             
-               USAGE(1), 0xBA,                 // Rudder               
-               LOGICAL_MINIMUM(1), 0x81,       // -127
-               LOGICAL_MAXIMUM(1), 0x7f,       // 127
-               REPORT_SIZE(1), 0x08,
-               REPORT_COUNT(1), 0x02,
-               INPUT(1), 0x02,                 // Data, Variable, Absolute               
+
                USAGE_PAGE(1), 0x01,            // Generic Desktop
                USAGE(1), 0x01,                 // Usage (Pointer)
                COLLECTION(1), 0x00,            // Physical
-                 USAGE(1), 0x30,                 // X
-                 USAGE(1), 0x31,                 // Y
-// 8 bit values
-//                 LOGICAL_MINIMUM(1), 0x81,       // -127
-//                 LOGICAL_MAXIMUM(1), 0x7f,       // 127
-//                 REPORT_SIZE(1), 0x08,
-//                 REPORT_COUNT(1), 0x02,
-//                 INPUT(1), 0x02,                 // Data, Variable, Absolute
-// 16 bit values
+                 USAGE(1), 0x30,                 // X, wheel angle
+                 USAGE(1), 0x31,                 // Y, always 0
+
+				 //pedals etc
+				 USAGE(1), 0x32,                 // Z
+                 USAGE(1), 0x33,                 // Rx
+                 USAGE(1), 0x34,                 // Ry
+                 USAGE(1), 0x35,                 // Rz
+			     USAGE(1), 0x36,                 // Rz
+			     USAGE(1), 0x37,                 // Rz
+
+				 // 16 bit values
                  LOGICAL_MINIMUM(2), 0x01, 0x80,       // -32767
-				 //LOGICAL_MINIMUM(1), 0,       // 0
                  LOGICAL_MAXIMUM(2), 0xff, 0x7f, // 32767
                  REPORT_SIZE(1), 0x10,
-                 REPORT_COUNT(1), 0x02,
+                 REPORT_COUNT(1), 0x08,
                  INPUT(1), 0x02,                 // Data, Variable, Absolute
 
                END_COLLECTION(0),               
-// 4 Position Hat Switch
-//               USAGE(1), 0x39,                 // Usage (Hat switch)
-//               LOGICAL_MINIMUM(1), 0x00,       // 0
-//               LOGICAL_MAXIMUM(1), 0x03,       // 3
-//               PHYSICAL_MINIMUM(1), 0x00,      // Physical_Minimum (0)
-//               PHYSICAL_MAXIMUM(2), 0x0E, 0x01, // Physical_Maximum (270)
-//               UNIT(1), 0x14,                  // Unit (Eng Rot:Angular Pos)                            
-//               REPORT_SIZE(1), 0x04,
-//               REPORT_COUNT(1), 0x01,
-//               INPUT(1), 0x02,                 // Data, Variable, Absolute               
-// 8 Position Hat Switch
-               USAGE(1), 0x39,                 // Usage (Hat switch)
-               LOGICAL_MINIMUM(1), 0x00,       // 0
-               LOGICAL_MAXIMUM(1), 0x07,       // 7
-               PHYSICAL_MINIMUM(1), 0x00,      // Physical_Minimum (0)
-               PHYSICAL_MAXIMUM(2), 0x3B, 0x01, // Physical_Maximum (315)
-               UNIT(1), 0x14,                  // Unit (Eng Rot:Angular Pos)                            
-               REPORT_SIZE(1), 0x04,
-               REPORT_COUNT(1), 0x01,
-               INPUT(1), 0x02,                 // Data, Variable, Absolute               
-//
+
                USAGE_PAGE(1), 0x09,            // Buttons
                USAGE_MINIMUM(1), 0x01,         // 1
-               USAGE_MAXIMUM(1), 0x04,         // 4
+               USAGE_MAXIMUM(1), 0x20,         // 32
                LOGICAL_MINIMUM(1), 0x00,       // 0
                LOGICAL_MAXIMUM(1), 0x01,       // 1
                REPORT_SIZE(1), 0x01,
-               REPORT_COUNT(1), 0x04,
+               REPORT_COUNT(1), 0x20,
                UNIT_EXPONENT(1), 0x00,         // Unit_Exponent (0)
                UNIT(1), 0x00,                  // Unit (None)                                           
                INPUT(1), 0x02,                 // Data, Variable, Absolute
