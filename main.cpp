@@ -1,47 +1,10 @@
 #include "mbed.h"
 #include "USBHID.h"
  
-//We declare a USBHID device. Input out output reports have a length of 8 bytes
-/*USBHID hid(8, 8);
- 
-//This report will contain data to be sent
-HID_REPORT send_report;
-HID_REPORT recv_report;*/
+
 DigitalOut led1(PD_15);
 DigitalOut led2(PD_14);
  
- /*
-int main(void) {
-    send_report.length = 8;
-    led1=1;
-    led2=1;
- 
-    while (1) {
-        //Fill the report
-        for (int i = 0; i < send_report.length; i++) {
-            send_report.data[i] = rand() & 0xff;
-        }
-            
-        //Send the report
-        hid.send(&send_report);
-        
-        //try to read a msg
-        if(hid.readNB(&recv_report)) {
-            //pc.printf("recv: ");
-            for(int i = 0; i < recv_report.length; i++) {
-              //  pc.printf("%d ", recv_report.data[i]);
-            }
-            //pc.printf("\r\n");
-        }
-        
-        wait(0.1);
-        led1=!led1;
-    }
-}
-*/
-
-#include "USBMouse.h"
-//#include "USBKeyboard.h"
 #include "stm32f4xx_hal_gpio.h"
 #include "stm32f4xx_hal_tim.h"
 
@@ -166,15 +129,12 @@ void SMPortSetMaster(bool me)
 }
 
 
-//USBMouse mouse;
-
 #include "USBGameController.h"
 USBGameController joystick;
 
 AnalogIn ADCUpperPin3(PC_5);
 AnalogIn ADCUpperPin2(PB_0);
 AnalogIn ADCUpperPin1(PB_1);
-//USBKeyboard keyboard;//keyb and mouse dont work simultaneously. hang in init
 
 Serial pc(PA_9, PA_10); // tx, rx
 #include "simplemotion.h"
@@ -190,6 +150,7 @@ int main() {
     uint32_t button = 0;
     int8_t hat = 0;
 
+    pc.baud(230400);
     pc.printf("Hello World!\n\r");
 
     EncoderInitialize();
@@ -197,19 +158,40 @@ int main() {
         // Basic Joystick
         throttle = (i >> 8) & 0xFF; // value -127 .. 128
         rudder = (i >> 8) & 0xFF;   // value -127 .. 128
-        //button = (i >> 8) & 0x0F;   // value    0 .. 15, one bit per button
         button=i;
-//        hat    = (i >> 8) & 0x03;   // value 0, 1, 2, 3 or 4 for neutral
         hat    = (i >> 8) & 0x07;   // value 0..7 or 8 for neutral
         i++;
-
-        //x = cos((double)angle*3.14/180.0)*radius;  // value -127 .. 128
-        //y = sin((double)angle*3.14/180.0)*radius;  // value -127 .. 128
         angle += 3;
 
         x=EncoderRead();
         y=0;
         joystick.update(throttle, throttle,throttle,rudder, x, y, button, hat);
+
+        if(joystick.getPendingReceivedReportCount())
+        {
+        	HID_REPORT recv_report=joystick.getReceivedReport();
+            pc.printf("recv (%d bytes): ",recv_report.length);
+            for(int i = 0; i < recv_report.length; i++) {
+                pc.printf("%d ", recv_report.data[i]);
+            }
+            pc.printf("\r\n");
+        	joystick.handleReceivedHIDReport(recv_report);
+            /*
+             * wheelcheck gives output like:
+				Hello World!
+
+				recv (2 bytes): 13 4
+				recv (2 bytes): 13 3
+				recv (2 bytes): 14 255
+				recv (2 bytes): 13 1
+				recv (2 bytes): 13 1
+				recv (2 bytes): 13 1
+				recv (2 bytes): 13 1
+				recv (2 bytes): 13 1
+
+				don't know why it outputs only "disable" command after first
+             */
+        }
 
         wait(0.001);
     }
@@ -217,7 +199,7 @@ int main() {
     pc.printf("Bye World!\n\r");
 }
 
-
+#if 0
 int __main() {
 	smbus h;
 	h=smOpenBus("MBEDSERIAL");
@@ -267,3 +249,4 @@ test=1;
     }
 }
 
+#endif

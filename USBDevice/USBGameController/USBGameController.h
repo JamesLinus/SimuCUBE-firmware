@@ -111,6 +111,8 @@ enum JOY_HAT {
  */
 
 
+#define RX_REPORT_BUFFER_COUNT 32//this must be power of 2
+
 class USBGameController: public USBHID {
    public:
 
@@ -122,7 +124,7 @@ class USBGameController: public USBHID {
          * @param product_release Your product_release (default: 0x0001)
          */
          USBGameController(uint16_t vendor_id = 0x7c5a, uint16_t product_id = 0xb101, uint16_t product_release = 0x0001):
-             USBHID(0, 0, vendor_id, product_id, product_release, false)
+             USBHID(0, 0, vendor_id, product_id, product_release, false),receivedReportBufferHead(0),FFBEnabled(false),receivedReportBufferTail(0)
              {
                  _init();
                  connect();
@@ -202,15 +204,37 @@ class USBGameController: public USBHID {
          */
          virtual uint8_t * stringIproductDesc();
 
+
+         /*
+         * Called when a data is received on the OUT endpoint.
+         *
+         * @returns if handle by subclass, return true
+         */
+         virtual bool EPINT_OUT_callback();
+
+         bool handleReceivedHIDReport(HID_REPORT report);
+
+         unsigned int getPendingReceivedReportCount();
+
+         HID_REPORT getReceivedReport();
+
+
      private:
+         bool FFBEnabled;
          int16_t Throttle;
          int16_t Brake;
          int16_t Clutch;
          int16_t Rudder;
          int16_t X;
          int16_t Y;
+         int16_t Z;
+         int16_t T;
          uint32_t Buttons;
          uint8_t Hat;
+
+         //storage for SET_REPORTs from host
+         unsigned int receivedReportBufferHead, receivedReportBufferTail;//head is index where new arrived report is stored, tail is the index where is last unhandled report
+		 HID_REPORT receivedReports[RX_REPORT_BUFFER_COUNT];
 
          void _init();
 };
