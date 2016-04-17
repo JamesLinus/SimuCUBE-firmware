@@ -49,4 +49,4 @@ The binary may be loaded to SimuCUBE with two methods:
 2) By using debugger device (such as comaptible JTAG or SWD interfaces like Segger J-Link or ST-LINK/V2). For development purposes, getting for example a [J-Link EDU](https://www.segger.com/j-link-edu.html) and setting up a [GDB based debug enfironment in Eclipse](https://www.segger.com/IDE_Integration_Eclipse.html) might pay back very fast in saved development time.
 
 ## LICENSE
-This project has been licensed with GPL v3 license. For full details, see LICENSE.txt from the repository.
+This project has been licensed with Apache liecnse version 2.0. For full details, see http://www.apache.org/licenses/LICENSE-2.0.
