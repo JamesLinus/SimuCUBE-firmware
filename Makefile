@@ -3,12 +3,14 @@
 
 GCC_BIN = 
 PROJECT = simucube
-OBJECTS = ./main.o ./USBDevice/USBAudio/USBAudio.o ./USBDevice/USBDevice/USBDevice.o ./USBDevice/USBDevice/USBHAL_KL25Z.o ./USBDevice/USBDevice/USBHAL_LPC11U.o ./USBDevice/USBDevice/USBHAL_LPC17.o ./USBDevice/USBDevice/USBHAL_EFM32.o ./USBDevice/USBDevice/USBHAL_LPC40.o ./USBDevice/USBDevice/USBHAL_Maxim.o ./USBDevice/USBDevice/USBHAL_RZ_A1H.o ./USBDevice/USBDevice/USBHAL_STM32F4.o ./USBDevice/USBHID/USBHID.o ./USBDevice/USBHID/USBKeyboard.o ./USBDevice/USBHID/USBMouse.o ./USBDevice/USBHID/USBMouseKeyboard.o ./USBDevice/USBMIDI/USBMIDI.o ./USBDevice/USBMSD/USBMSD.o ./USBDevice/USBSerial/USBCDC.o ./USBDevice/USBSerial/USBSerial.o \
+OBJECTS = ./main.o ./Debug.o ./Command.o ./Effects.o ./USBDevice/USBAudio/USBAudio.o ./USBDevice/USBDevice/USBDevice.o ./USBDevice/USBDevice/USBHAL_KL25Z.o ./USBDevice/USBDevice/USBHAL_LPC11U.o ./USBDevice/USBDevice/USBHAL_LPC17.o ./USBDevice/USBDevice/USBHAL_EFM32.o ./USBDevice/USBDevice/USBHAL_LPC40.o ./USBDevice/USBDevice/USBHAL_Maxim.o ./USBDevice/USBDevice/USBHAL_RZ_A1H.o ./USBDevice/USBDevice/USBHAL_STM32F4.o ./USBDevice/USBHID/USBHID.o ./USBDevice/USBHID/USBKeyboard.o ./USBDevice/USBHID/USBMouse.o ./USBDevice/USBHID/USBMouseKeyboard.o ./USBDevice/USBMIDI/USBMIDI.o ./USBDevice/USBMSD/USBMSD.o ./USBDevice/USBSerial/USBCDC.o ./USBDevice/USBSerial/USBSerial.o \
 	./SimpleMotion/busdevice.o \
 	./SimpleMotion/simplemotion.o \
 	./SimpleMotion/sm_consts.o \
-	./USBDevice/USBGameController/USBGameController.o 
-
+	./USBDevice/USBGameController/USBGameController.o \
+	./USBDevice/USBGameController/USBGameControllerDesc.o \
+	./USBDevice/USBGameController/ffb.o \
+	./USBDevice/USBGameController/ffb_pro.o	 
 
 	#stm periph lib headers conflict with mbed headers. avoid using stm lib
 	#./stm32_periph_lib/src/misc.o \
@@ -77,7 +79,7 @@ endif
 
 
 CPU = -mcpu=cortex-m4 -mthumb -mfpu=fpv4-sp-d16 -mfloat-abi=$(FLOAT_ABI) 
-CC_FLAGS = $(CPU) -c -g -fno-common -fmessage-length=0 -Wall -Wextra -fno-exceptions -ffunction-sections -fdata-sections -fomit-frame-pointer -MMD -MP
+CC_FLAGS = $(CPU) -c -g -fno-common -fmessage-length=0 -Wall -Wextra -Wunused-parameter -fno-exceptions -ffunction-sections -fdata-sections -fomit-frame-pointer -MMD -MP
 CC_SYMBOLS = -DTARGET_RTOS_M4_M7 -DTARGET_ARCH_MAX -DTOOLCHAIN_GCC_ARM -DTOOLCHAIN_GCC -D__CORTEX_M4 -DTARGET_LIKE_MBED -DTARGET_CORTEX_M -DLSI_VALUE=32000 -D__FPU_PRESENT=1 -DTARGET_FF_ARDUINO -DTARGET_LIKE_CORTEX_M4 -DTARGET_M4 -D__MBED__=1 -DTARGET_STM -DTARGET_STM32F407 -DTARGET_STM32F4 -DTARGET_STM32F407VG -DARM_MATH_CM4 -DMBED_BUILD_TIMESTAMP=1458485789.96 
 
 LD_FLAGS = $(CPU) -Wl,--gc-sections --specs=nano.specs -u _printf_float -u _scanf_float -Wl,--wrap,main -Wl,-Map=$(PROJECT).map,--cref

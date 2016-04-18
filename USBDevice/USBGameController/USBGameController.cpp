@@ -17,63 +17,60 @@
 * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
+
+/* Contributors:
+ * Tero Kontkanen
+ * Etienne Saint-Paul
+ */
+
 #include "stdint.h"
+#include "types.h"
 #include "USBGameController.h"
+#include "ffb.h"
+#include "USBDevice_Types.h"
 
-bool USBGameController::update(int16_t brake, int16_t clutch, int16_t throttle, int16_t rudder, int16_t x, int16_t y, uint32_t button, uint8_t hat)
+bool USBGameController::update(uint16_t brake, uint16_t clutch, uint16_t throttle, uint16_t rudder, uint16_t x, uint16_t y, uint32_t button, uint8_t hat)
 {
-             HID_REPORT report;
-   Throttle = throttle;
-   Brake = rudder;
-   X = x;
-   Y = y;
-   Buttons = button;     
-   Hat = hat;
+	Throttle = throttle;
+	Brake = brake;
+	Clutch = clutch;
+	Rudder = rudder;
+	X = x;
+	Y = y;
+	Z = y;
+	T = y;
+	Buttons = button;     
+	Hat = hat;
 
-   update();
+	return(update());
 }
+
+#define AddAxisValue(m_val)		{report.data[i++] = m_val & 0xff; report.data[i++] = ((m_val & 0xff00) >> 8);}
  
-bool USBGameController::update() {
-   HID_REPORT report;
+bool USBGameController::update() 
+{
+	HID_REPORT report;
 
-   int i=0;
-   // Fill the report according to the Joystick Descriptor
-   //report.data[0] = Brake & 0xff;
-   //report.data[1] = Clutch & 0xff;
-   //report.data[2] = Throttle & 0xff;
-   //report.data[3] = Rudder & 0xff;
-   report.data[i++] = X & 0xff;
-   report.data[i++] = ((X&0xff00)>>8);
+	int i=0;
 
-   report.data[i++] = Y & 0xff;
-   report.data[i++] = ((Y&0xff00)>>8);
+	report.data[i++] = REPORT_ID_JOYSTICK;
+	AddAxisValue(X);
+	AddAxisValue(Y);
+	AddAxisValue(Z);
+	AddAxisValue( Brake);
+	AddAxisValue(Throttle);
+	AddAxisValue(Clutch);
+	AddAxisValue(Rudder);
+	AddAxisValue(T);
 
-   report.data[i++] = X & 0xff;
-   report.data[i++] = ((X&0xff00)>>8);
+	//report.data[8] = ((Buttons & 0x0f) << 4) | (Hat & 0x0f) ;
+	report.data[i++] = ((Buttons & 0xff) >>0);
+	report.data[i++] = ((Buttons & 0xff00) >>8);
+	report.data[i++] = ((Buttons & 0xff0000) >>16);
+	report.data[i++] = ((Buttons & 0xff000000) >>24);
+	report.length = i;
 
-   report.data[i++] = X & 0xff;
-   report.data[i++] = ((X&0xff00)>>8);
-
-   report.data[i++] = X & 0xff;
-   report.data[i++] = ((X&0xff00)>>8);
-
-   report.data[i++] = X & 0xff;
-   report.data[i++] = ((X&0xff00)>>8);
-
-   report.data[i++] = X & 0xff;
-   report.data[i++] = ((X&0xff00)>>8);
-
-   report.data[i++] = X & 0xff;
-   report.data[i++] = ((X&0xff00)>>8);
-
-   //report.data[8] = ((Buttons & 0x0f) << 4) | (Hat & 0x0f) ;
-   report.data[i++] = ((Buttons & 0xff) >>0);
-   report.data[i++] = ((Buttons & 0xff00) >>8);
-   report.data[i++] = ((Buttons & 0xff0000) >>16);
-   report.data[i++] = ((Buttons & 0xff000000) >>24);
-   report.length = i;
-
-   return send(&report);
+	return send(&report);
 }
 
 bool USBGameController::throttle(int16_t t) {
@@ -103,74 +100,122 @@ bool USBGameController::hat(uint8_t hat) {
 }
 
 
-void USBGameController::_init() {
-
-   Throttle = -127;
-   Brake = -127;
-   Clutch=0;
-   Rudder=0;
-   X = 0;                       
-   Y = 0;     
-   Buttons = 0x00;
-   Hat = 0x00;              
+void USBGameController::_init() 
+{
+	Throttle = -127;
+	Brake = -127;
+	Clutch=0;
+	Rudder=0;
+	X = 0;                       
+	Y = 0;
+	Buttons = 0x00;
+	Hat = 0x00;
 }
 
+bool USBGameController::USBCallback_request()
+{
+	CONTROL_TRANSFER * transfer = getTransferPtr();
+	u8 report_id = DESCRIPTOR_INDEX(transfer->setup.wValue);
+	int r = transfer->setup.bRequest;
+	int requestType = transfer->setup.bmRequestType.Type;
+	if (requestType == REQUEST_INTERFACE)//REQUEST_HOSTTODEVICE_CLASS_INTERFACE)
+	{
+		switch (r)
+		{
+		case HID_GET_REPORT:
+			if (report_id == 6)// && (gNewEffectBlockLoad.reportId==6))
+			{
+				USB_SendControl(0,(u8 *)&mSetReportAnwser,sizeof(USB_FFBReport_PIDBlockLoad_Feature_Data_t));
+				mSetReportAnwser.reportId = 0;
+				return (true);
+			}
+			if (report_id == 7)
+			{
+				mGetReportAnwser.reportId = report_id;
+				mGetReportAnwser.ramPoolSize = 0xffff;
+				mGetReportAnwser.maxSimultaneousEffects = MAX_EFFECTS;
+				mGetReportAnwser.memoryManagement = 3;
+				USB_SendControl(0,(u8 *)&mGetReportAnwser,sizeof(USB_FFBReport_PIDPool_Feature_Data_t));
+				return (true);
+			}
+			return true;
+		case HID_GET_PROTOCOL:
+				//Send8(_hid_protocol);	// TODO
+				return true;
 
-uint8_t * USBGameController::reportDesc() {    
-         static uint8_t reportDescriptor[] = {
+		case HID_SET_PROTOCOL:
+//			_hid_protocol = setup.wValueL;
+			return true;
 
-             USAGE_PAGE(1), 0x01,           // Generic Desktop           
-             LOGICAL_MINIMUM(1), 0x00,      // Logical_Minimum (0)             
-             USAGE(1), 0x04,                // Usage (Joystick)
-             COLLECTION(1), 0x01,           // Application
+		case HID_SET_IDLE:
+//			_hid_idle = setup.wValueL;
+			return true;
 
-               USAGE_PAGE(1), 0x01,            // Generic Desktop
-               USAGE(1), 0x01,                 // Usage (Pointer)
-               COLLECTION(1), 0x00,            // Physical
-                 USAGE(1), 0x30,                 // X, wheel angle
-                 USAGE(1), 0x31,                 // Y, always 0
-
-				 //pedals etc
-				 USAGE(1), 0x32,                 // Z
-                 USAGE(1), 0x33,                 // Rx
-                 USAGE(1), 0x34,                 // Ry
-                 USAGE(1), 0x35,                 // Rz
-			     USAGE(1), 0x36,                 // Rz
-			     USAGE(1), 0x37,                 // Rz
-
-				 // 16 bit values
-                 LOGICAL_MINIMUM(2), 0x01, 0x80,       // -32767
-                 LOGICAL_MAXIMUM(2), 0xff, 0x7f, // 32767
-                 REPORT_SIZE(1), 0x10,
-                 REPORT_COUNT(1), 0x08,
-                 INPUT(1), 0x02,                 // Data, Variable, Absolute
-
-               END_COLLECTION(0),               
-
-               USAGE_PAGE(1), 0x09,            // Buttons
-               USAGE_MINIMUM(1), 0x01,         // 1
-               USAGE_MAXIMUM(1), 0x20,         // 32
-               LOGICAL_MINIMUM(1), 0x00,       // 0
-               LOGICAL_MAXIMUM(1), 0x01,       // 1
-               REPORT_SIZE(1), 0x01,
-               REPORT_COUNT(1), 0x20,
-               UNIT_EXPONENT(1), 0x00,         // Unit_Exponent (0)
-               UNIT(1), 0x00,                  // Unit (None)                                           
-               INPUT(1), 0x02,                 // Data, Variable, Absolute
-             END_COLLECTION(0)
-
-        };
-
-      reportLength = sizeof(reportDescriptor);
-      return reportDescriptor;
+		case HID_SET_REPORT:
+			if (report_id == 5)
+			{
+				USB_RecvControl(0,sizeof(USB_FFBReport_CreateNewEffect_Feature_Data_t));
+				return true;
+			}
+		}
+	}
+	return (USBHID::USBCallback_request());
 }
 
-uint8_t * USBGameController::stringIproductDesc() {
-    static uint8_t stringIproductDescriptor[] = {
-        0x12,                                                       //bLength
-        STRING_DESCRIPTOR,                                          //bDescriptorType 0x03
-        'S',0,'i',0,'m',0,'u',0,'C',0,'U',0,'B',0,'E',0 //bString iProduct - HID device
-    };
-    return stringIproductDescriptor;
+void USBGameController::USBCallback_requestCompleted(uint8_t * buf, uint32_t length)
+{
+	CONTROL_TRANSFER * transfer = getTransferPtr();
+	u8 report_id = DESCRIPTOR_INDEX(transfer->setup.wValue);
+	int r = transfer->setup.bRequest;
+	int requestType = transfer->setup.bmRequestType.Type;
+	if ((r == HID_SET_REPORT)&&(requestType == REQUEST_INTERFACE)&&(report_id == 5))
+		FfbOnCreateNewEffect((USB_FFBReport_CreateNewEffect_Feature_Data_t *)buf, &mSetReportAnwser);
 }
 
+u32 USBGameController::USB_SendControl (u8 flags, const u8 *d, u32 len)
+{
+	CONTROL_TRANSFER * transfer = getTransferPtr();
+	getTransferPtr()->remaining = len;
+	getTransferPtr()->ptr = (u8*) d;
+	getTransferPtr()->direction = DEVICE_TO_HOST;
+	return (len);
+}
+
+u32 USBGameController::USB_RecvControl (u8 *d, u32 len)
+{
+	CONTROL_TRANSFER * transfer = getTransferPtr();
+	transfer->remaining = len;
+	transfer->notify = true;
+	transfer->direction = HOST_TO_DEVICE;
+	return (len);
+}
+
+bool USBGameController::EPINT_OUT_callback()
+{
+	bool returnval;
+
+    USBDevice::readEP(EPINT_OUT, receivedReports[receivedReportBufferHead].data, &receivedReports[receivedReportBufferHead].length, MAX_HID_REPORT_SIZE);
+
+	receivedReportBufferHead=(receivedReportBufferHead+1)&(RX_REPORT_BUFFER_COUNT-1);
+
+    // We activate the endpoint to be able to recceive data
+    if (!readStart(EPINT_OUT, MAX_HID_REPORT_SIZE))
+        returnval= false;
+    else
+    	returnval= true;
+
+    return returnval;
+}
+
+unsigned int USBGameController::getPendingReceivedReportCount()
+{
+	 //calculate how many reports are pending to read
+	 return (receivedReportBufferHead-receivedReportBufferTail)&(RX_REPORT_BUFFER_COUNT-1);
+}
+
+HID_REPORT USBGameController::getReceivedReport()
+{
+	 int takeFrom=receivedReportBufferTail;
+	 receivedReportBufferTail=(receivedReportBufferTail+1)&(RX_REPORT_BUFFER_COUNT-1);
+	 return receivedReports[takeFrom];
+}

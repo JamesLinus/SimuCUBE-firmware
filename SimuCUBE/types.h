@@ -29,10 +29,60 @@ typedef signed short s16;
 #ifndef s8
 typedef signed char s8;
 #endif
+#ifndef b8
+typedef u8 b8;
+#endif
+#ifndef b16
+typedef u16 b16;
+#endif
+#ifndef b32
+typedef u32 b32;
+#endif
+#ifndef f32
+typedef float				f32;
+#endif
+#ifndef f64
+typedef double				f64;
+#endif
+#ifndef s64
+typedef signed long long	s64;
+#endif
+#ifndef u64
+typedef unsigned long long	u64;
+#endif
+#ifndef FALSE
+#define FALSE	false
+#endif
+#ifndef TRUE
+#define TRUE	true
+#endif
 
 #ifndef NULL
 #define NULL 0
 #endif
+
+	/*Defines for Bset etc directives....*/
+#define Bset(data,val) data|=(val)
+#define Bclr(data,val) data&=~(val)
+#define Btest(data,val) ((data&(val))==(val))
+#define Bchg(data,val) if (Btest(data,val)) Bclr(data,val); else Bset(data,val)
+#define Bmov(data,data1,val) if (Btest(data,val)) Bset(data1,val); else Bclr(data1,val)
+
+#define PI 3.1415926535897932384626433832795
+#define HALF_PI 1.5707963267948966192313216916398
+#define TWO_PI 6.283185307179586476925286766559
+#define DEG_TO_RAD 0.017453292519943295769236907684886
+#define RAD_TO_DEG 57.295779513082320876798154814105
+#define EULER 2.718281828459045235360287471352
+
+#define min(a,b) ((a)<(b)?(a):(b))
+#define max(a,b) ((a)>(b)?(a):(b))
+//#define abs(x) ((x)>0?(x):-(x))
+#define constrain(amt,low,high) ((amt)<(low)?(low):((amt)>(high)?(high):(amt)))
+#define round(x)     ((x)>=0?(long)((x)+0.5):(long)((x)-0.5))
+#define radians(deg) ((deg)*DEG_TO_RAD)
+#define degrees(rad) ((rad)*RAD_TO_DEG)
+#define sq(x) ((x)*(x))
 
 //for simple motion param ranges
 #define S32MAX 2147483647L

@@ -7,8 +7,93 @@
 #define USBGAMECONTROLLER_H
 
 #include "USBHID.h"
+#include "ffb.h"
 
 #define REPORT_ID_JOYSTICK  4
+
+// bmRequestType
+#define REQUEST_HOSTTODEVICE	0x00
+#define REQUEST_DEVICETOHOST	0x80
+#define REQUEST_DIRECTION		0x80
+
+#define REQUEST_STANDARD		0x00
+#define REQUEST_CLASS			0x20
+#define REQUEST_VENDOR			0x40
+#define REQUEST_TYPE			0x60
+
+#define REQUEST_DEVICE			0x00
+#define REQUEST_INTERFACE		0x01
+#define REQUEST_ENDPOINT		0x02
+#define REQUEST_OTHER			0x03
+#define REQUEST_RECIPIENT		0x03
+
+#define REQUEST_DEVICETOHOST_CLASS_INTERFACE  (REQUEST_DEVICETOHOST + REQUEST_CLASS + REQUEST_INTERFACE)
+#define REQUEST_HOSTTODEVICE_CLASS_INTERFACE  (REQUEST_HOSTTODEVICE + REQUEST_CLASS + REQUEST_INTERFACE)
+
+//	Class requests
+
+#define CDC_SET_LINE_CODING			0x20
+#define CDC_GET_LINE_CODING			0x21
+#define CDC_SET_CONTROL_LINE_STATE	0x22
+
+#define MSC_RESET					0xFF
+#define MSC_GET_MAX_LUN				0xFE
+
+#define HID_GET_REPORT				0x01
+#define HID_GET_IDLE				0x02
+#define HID_GET_PROTOCOL			0x03
+#define HID_SET_REPORT				0x09
+#define HID_SET_IDLE				0x0A
+#define HID_SET_PROTOCOL			0x0B
+
+#define NB_AXIS			8
+#define NB_FF_AXIS		1
+
+#define X_AXIS_NB_BITS	16
+#define Y_AXIS_NB_BITS	16
+#define Z_AXIS_NB_BITS	16
+#define RX_AXIS_NB_BITS	16
+#define RY_AXIS_NB_BITS	16
+#define RZ_AXIS_NB_BITS	16
+#define SX_AXIS_NB_BITS	16
+#define SY_AXIS_NB_BITS	16
+#define NB_BUTTONS		32
+
+#define X_AXIS_LOG_MAX		((1L<<(X_AXIS_NB_BITS))-1)
+#define X_AXIS_LOG_MIN		0//(-X_AXIS_LOG_MAX)
+#define X_AXIS_PHYS_MAX		((1L<<X_AXIS_NB_BITS)-1)
+
+#define Y_AXIS_LOG_MAX		((1L<<(Y_AXIS_NB_BITS))-1)
+#define Y_AXIS_LOG_MIN		0//(-Y_AXIS_LOG_MAX)
+#define Y_AXIS_PHYS_MAX		((1L<<Y_AXIS_NB_BITS)-1)
+
+#define Z_AXIS_LOG_MAX		((1L<<(Z_AXIS_NB_BITS))-1)
+#define Z_AXIS_LOG_MIN		0//(-Z_AXIS_LOG_MAX)
+#define Z_AXIS_PHYS_MAX		((1L<<Z_AXIS_NB_BITS)-1)
+
+#define RX_AXIS_LOG_MAX		((1L<<(RX_AXIS_NB_BITS))-1)
+#define RX_AXIS_LOG_MIN		0//(-RX_AXIS_LOG_MAX)
+#define RX_AXIS_PHYS_MAX	((1L<<RX_AXIS_NB_BITS)-1)
+
+#define RY_AXIS_LOG_MAX		((1L<<(RY_AXIS_NB_BITS))-1)
+#define RY_AXIS_LOG_MIN		0//(-RY_AXIS_LOG_MAX)
+#define RY_AXIS_PHYS_MAX	((1L<<RY_AXIS_NB_BITS)-1)
+
+#define RZ_AXIS_LOG_MAX		((1L<<(RZ_AXIS_NB_BITS))-1)
+#define RZ_AXIS_LOG_MIN		0//(-RZ_AXIS_LOG_MAX)
+#define RZ_AXIS_PHYS_MAX	((1L<<RZ_AXIS_NB_BITS)-1)
+
+#define SX_AXIS_LOG_MAX		((1L<<(SX_AXIS_NB_BITS))-1)
+#define SX_AXIS_LOG_MIN		0//(-SX_AXIS_LOG_MAX)
+#define SX_AXIS_PHYS_MAX	((1L<<SX_AXIS_NB_BITS)-1)
+
+#define SY_AXIS_LOG_MAX		((1L<<(SY_AXIS_NB_BITS))-1)
+#define SY_AXIS_LOG_MIN		0//(-SY_AXIS_LOG_MAX)
+#define SY_AXIS_PHYS_MAX	((1L<<SY_AXIS_NB_BITS)-1)
+
+#define TRANSFER_PGM		0x80
+#define TRANSFER_RELEASE	0x40
+#define TRANSFER_ZERO		0x20
 
 /* Common usage */
 enum JOY_BUTTON {
@@ -111,6 +196,8 @@ enum JOY_HAT {
  */
 
 
+#define RX_REPORT_BUFFER_COUNT 32//this must be power of 2
+
 class USBGameController: public USBHID {
    public:
 
@@ -122,7 +209,7 @@ class USBGameController: public USBHID {
          * @param product_release Your product_release (default: 0x0001)
          */
          USBGameController(uint16_t vendor_id = 0x7c5a, uint16_t product_id = 0xb101, uint16_t product_release = 0x0001):
-             USBHID(0, 0, vendor_id, product_id, product_release, false)
+             USBHID(0, 0, vendor_id, product_id, product_release, false),receivedReportBufferHead(0),FFBEnabled(false),receivedReportBufferTail(0)
              {
                  _init();
                  connect();
@@ -138,7 +225,7 @@ class USBGameController: public USBHID {
          * @param hat hat state 0 (up), 1 (right, 2 (down), 3 (left) or 4 (neutral)
          * @returns true if there is no error, false otherwise
          */
-         bool update(int16_t brake, int16_t clutch, int16_t throttle, int16_t rudder, int16_t x, int16_t y, uint32_t button, uint8_t hat);
+         bool update(uint16_t brake, uint16_t clutch, uint16_t throttle, uint16_t rudder, uint16_t x, uint16_t y, uint32_t button, uint8_t hat);
 
          /**
          * Write a state of the mouse
@@ -202,16 +289,65 @@ class USBGameController: public USBHID {
          */
          virtual uint8_t * stringIproductDesc();
 
+
+         /*
+         * Called when a data is received on the OUT endpoint.
+         *
+         * @returns if handle by subclass, return true
+         */
+         virtual bool EPINT_OUT_callback();
+	
+
+		/*
+		* Called by USBDevice on Endpoint0 request. Warning: Called in ISR context
+		* This is used to handle extensions to standard requests
+		* and class specific requests
+		*
+		* @returns true if class handles this request
+		*/
+		virtual bool USBCallback_request();
+
+		/*
+		* Called by USBDevice on Endpoint0 request completion
+		* if the 'notify' flag has been set to true. Warning: Called in ISR context
+		*
+		* In this case it is used to indicate that a HID report has
+		* been received from the host on endpoint 0
+		*
+		* @param buf buffer received on endpoint 0
+		* @param length length of this buffer
+		*/
+		virtual void USBCallback_requestCompleted(uint8_t * buf, uint32_t length);
+	
+	     bool handleReceivedHIDReport(HID_REPORT report);
+
+         unsigned int getPendingReceivedReportCount();
+
+         HID_REPORT getReceivedReport();
+
+	u32 USB_SendControl (u8 flags, const u8 *d, u32 len);
+	u32 USB_RecvControl (u8 *d, u32 len);
+
      private:
+         bool FFBEnabled;
          int16_t Throttle;
          int16_t Brake;
          int16_t Clutch;
          int16_t Rudder;
          int16_t X;
          int16_t Y;
+         int16_t Z;
+         int16_t T;
          uint32_t Buttons;
          uint8_t Hat;
 
+         //storage for SET_REPORTs from host
+         unsigned int receivedReportBufferHead, receivedReportBufferTail;//head is index where new arrived report is stored, tail is the index where is last unhandled report
+		 HID_REPORT receivedReports[RX_REPORT_BUFFER_COUNT];
+
+			USB_FFBReport_PIDPool_Feature_Data_t mGetReportAnwser;
+			USB_FFBReport_PIDBlockLoad_Feature_Data_t mSetReportAnwser;
+	
          void _init();
 };
 
